@@ -189,6 +189,7 @@ export const ebookApi = {
       tagline?: string;
       visualStyle?: string;
       customPrompt?: string;
+      imageSize?: string;
     }
   ): Promise<{
     imageUrl: string;
@@ -198,6 +199,29 @@ export const ebookApi = {
     coverSettings: any;
   }> {
     return request(`/api/ebooks/${id}/cover/generate-image`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async editCoverImage(
+    id: string,
+    data: {
+      title?: string;
+      subtitle?: string;
+      tagline?: string;
+      imageToEdit: string;
+      editInstruction: string;
+      imageSize?: string;
+    }
+  ): Promise<{
+    imageUrl: string;
+    promptUsed: string;
+    styleUsed: string;
+    provider: string;
+    coverSettings: any;
+  }> {
+    return request(`/api/ebooks/${id}/cover/edit-image`, {
       method: 'POST',
       body: JSON.stringify(data),
     });

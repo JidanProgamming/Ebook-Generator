@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ToastProvider, useToast } from './components/Toast.js';
 import { Navbar, WorkflowStepId } from './components/Navbar.js';
 import { LandingPage } from './components/LandingPage.js';
-import { LoginPage } from './components/LoginPage.js';
-import { AuthModal } from './components/AuthModal.js';
 import { Dashboard } from './components/Dashboard.js';
 import { IdeaInputStep } from './components/IdeaInputStep.js';
 import { OutlineStep } from './components/OutlineStep.js';
@@ -13,11 +11,11 @@ import { CoverDesignerStep } from './components/CoverDesignerStep.js';
 import { ExportStep } from './components/ExportStep.js';
 import { AccountModal } from './components/AccountModal.js';
 import { Ebook, UserProfile } from './types/index.js';
-import { authApi, ebookApi, getAuthToken, getStoredUser } from './lib/api.js';
+import { authApi, ebookApi, getAuthToken, setAuthToken, getStoredUser, setStoredUser } from './lib/api.js';
 
 function MainApp() {
   const [user, setUser] = useState<UserProfile | null>(getStoredUser());
-  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard' | 'workflow'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'workflow'>('landing');
   const [workflowStep, setWorkflowStep] = useState<WorkflowStepId>('idea');
   const [activeEbook, setActiveEbook] = useState<Ebook | null>(null);
   const [editorInitialChapterId, setEditorInitialChapterId] = useState<string | undefined>(undefined);
@@ -25,55 +23,53 @@ function MainApp() {
   const [ebooks, setEbooks] = useState<Ebook[]>([]);
   const [loadingEbooks, setLoadingEbooks] = useState(false);
 
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountModalTab, setAccountModalTab] = useState<'profile' | 'ai_settings'>('profile');
 
   const { showToast } = useToast();
 
-  // Load current user profile and ebooks on mount
+  // Initialize author session on mount without any login requirement
   useEffect(() => {
-    const initAuth = async () => {
-      const token = getAuthToken();
-      if (token) {
-        try {
-          const profile = await authApi.getMe();
-          setUser(profile);
-          setCurrentView('dashboard');
-        } catch {
-          // Token expired or invalid
-          authApi.logout();
-          setUser(null);
-          setCurrentView('landing');
-        }
-      } else {
-        // Not logged in: show landing page
-        setUser(null);
+    const initSession = async () => {
+      try {
+        const profile = await authApi.getMe();
+        setUser(profile);
+        setStoredUser(profile);
+        setAuthToken(profile.id);
+      } catch (err) {
+        // Fallback default author profile if offline or starting clean
+        const defaultProfile: UserProfile = {
+          id: 'usr_demo_101',
+          email: 'demo@ebookgenerator.com',
+          displayName: 'Penulis Ebook',
+          createdAt: new Date().toISOString(),
+        };
+        setUser(defaultProfile);
+        setStoredUser(defaultProfile);
+        setAuthToken(defaultProfile.id);
       }
     };
-    initAuth();
+    initSession();
   }, []);
 
-  // Fetch ebooks whenever user is present and view is dashboard
+  // Fetch ebooks whenever view is dashboard or workflow
   const refreshEbooks = useCallback(async () => {
-    if (!user) return;
     setLoadingEbooks(true);
     try {
       const list = await ebookApi.getAll();
       setEbooks(list);
     } catch (err: any) {
-      console.error('Failed to load ebooks', err);
+      console.error('Gagal memuat daftar ebook', err);
     } finally {
       setLoadingEbooks(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
-    if (user && (currentView === 'dashboard' || currentView === 'workflow')) {
+    if (currentView === 'dashboard' || currentView === 'workflow') {
       refreshEbooks();
     }
-  }, [user, currentView, refreshEbooks]);
+  }, [currentView, refreshEbooks]);
 
   // Refresh active ebook details
   const refreshActiveEbook = useCallback(async () => {
@@ -82,7 +78,7 @@ function MainApp() {
       const updated = await ebookApi.getById(activeEbook.id);
       setActiveEbook(updated);
     } catch (err) {
-      console.error('Failed to refresh active ebook', err);
+      console.error('Gagal memperbarui ebook aktif', err);
     }
   }, [activeEbook]);
 
@@ -105,31 +101,11 @@ function MainApp() {
     }
   };
 
-  // Handler: Create New Ebook
+  // Handler: Create New Ebook - instantly opens workflow with zero login gate
   const handleCreateNewEbook = () => {
-    if (!user) {
-      setAuthModalOpen(true);
-      return;
-    }
     setActiveEbook(null);
     setCurrentView('workflow');
     setWorkflowStep('idea');
-  };
-
-  // Handler: Auth success
-  const handleAuthSuccess = (authenticatedUser: UserProfile) => {
-    setUser(authenticatedUser);
-    setCurrentView('dashboard');
-    refreshEbooks();
-  };
-
-  // Handler: Logout
-  const handleLogout = () => {
-    authApi.logout();
-    setUser(null);
-    setActiveEbook(null);
-    setCurrentView('landing');
-    showToast('Anda telah berhasil keluar.', 'info');
   };
 
   return (
@@ -149,15 +125,10 @@ function MainApp() {
           setWorkflowStep(step);
         }}
         onOpenNewEbook={handleCreateNewEbook}
-        onOpenAuth={(mode) => {
-          setAuthModalMode(mode || 'login');
-          setAuthModalOpen(true);
-        }}
         onOpenSettings={(tab) => {
           setAccountModalTab(tab || 'profile');
           setAccountModalOpen(true);
         }}
-        onLogout={handleLogout}
       />
 
       {/* Main View Router */}
@@ -165,40 +136,20 @@ function MainApp() {
         {/* VIEW 1: LANDING PAGE */}
         {currentView === 'landing' && (
           <LandingPage
-            onStartCreating={() => {
-              if (user) {
-                setCurrentView('dashboard');
-              } else {
-                setAuthModalMode('register');
-                setCurrentView('login');
-              }
-            }}
-            onOpenDemo={async () => {
-              try {
-                const demoRes = await authApi.login('demo@ebookgenerator.com', 'demo123');
-                showToast(`Masuk sebagai ${demoRes.user.displayName}`, 'success');
-                handleAuthSuccess(demoRes.user);
-              } catch {
-                setAuthModalMode('login');
-                setAuthModalOpen(true);
-              }
-            }}
+            onStartCreating={handleCreateNewEbook}
+            onOpenDemo={() => setCurrentView('dashboard')}
           />
         )}
 
-        {/* VIEW 2: DEDICATED LOGIN / REGISTER PAGE */}
-        {currentView === 'login' && (
-          <LoginPage
-            initialMode={authModalMode}
-            onLoginSuccess={handleAuthSuccess}
-            onNavigateBack={() => setCurrentView('landing')}
-          />
-        )}
-
-        {/* VIEW 3: DASHBOARD */}
-        {currentView === 'dashboard' && user && (
+        {/* VIEW 2: DASHBOARD */}
+        {currentView === 'dashboard' && (
           <Dashboard
-            user={user}
+            user={user || {
+              id: 'usr_demo_101',
+              email: 'demo@ebookgenerator.com',
+              displayName: 'Penulis Ebook',
+              createdAt: new Date().toISOString(),
+            }}
             ebooks={ebooks}
             loading={loadingEbooks}
             onSelectEbook={handleSelectEbook}
@@ -211,7 +162,7 @@ function MainApp() {
           />
         )}
 
-        {/* VIEW 3: WORKFLOW */}
+        {/* VIEW 3: WORKFLOW STEPS */}
         {currentView === 'workflow' && (
           <div className="flex-1 flex flex-col">
             {/* STEP 1: INPUT IDE */}
@@ -287,14 +238,7 @@ function MainApp() {
         )}
       </div>
 
-      {/* Modals */}
-      <AuthModal
-        isOpen={authModalOpen}
-        initialMode={authModalMode}
-        onClose={() => setAuthModalOpen(false)}
-        onAuthSuccess={handleAuthSuccess}
-      />
-
+      {/* Account & AI Settings Modal */}
       {user && (
         <AccountModal
           isOpen={accountModalOpen}

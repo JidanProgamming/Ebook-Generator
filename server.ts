@@ -662,7 +662,7 @@ app.post('/api/ebooks/:id/cover/generate-image', authMiddleware, async (req: Req
       return;
     }
 
-    const { title, subtitle, tagline, visualStyle, customPrompt } = req.body;
+    const { title, subtitle, tagline, visualStyle, customPrompt, imageSize } = req.body;
     const aiSettings = getUserAISettings(user.id);
 
     const result = await generateCoverImage(
@@ -673,6 +673,7 @@ app.post('/api/ebooks/:id/cover/generate-image', authMiddleware, async (req: Req
         idea: ebook.idea,
         visualStyle: visualStyle as CoverVisualStyle,
         customPrompt,
+        imageSize,
       },
       aiSettings
     );
@@ -710,6 +711,54 @@ app.post('/api/ebooks/:id/cover/generate-image', authMiddleware, async (req: Req
   } catch (err: any) {
     console.error('Cover image generation error:', err);
     res.status(500).json({ error: err.message || 'Gagal menghasilkan gambar cover' });
+  }
+});
+
+// --- COVER IMAGE EDIT WITH NANO BANANA 2.1 ---
+app.post('/api/ebooks/:id/cover/edit-image', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const ebook = getEbookById(req.params.id, user.id);
+    if (!ebook) {
+      res.status(404).json({ error: 'Ebook tidak ditemukan' });
+      return;
+    }
+
+    const { title, subtitle, tagline, imageToEdit, editInstruction, imageSize } = req.body;
+    const aiSettings = getUserAISettings(user.id);
+
+    const result = await generateCoverImage(
+      {
+        title: title || ebook.title,
+        subtitle: subtitle !== undefined ? subtitle : ebook.subtitle,
+        tagline: tagline !== undefined ? tagline : ebook.coverSettings?.tagline,
+        idea: ebook.idea,
+        imageToEdit,
+        editInstruction,
+        imageSize,
+      },
+      aiSettings
+    );
+
+    const updatedCoverSettings = {
+      ...ebook.coverSettings,
+      bgImageUrl: result.imageUrl,
+    };
+
+    updateEbook(ebook.id, user.id, {
+      coverSettings: updatedCoverSettings,
+    });
+
+    res.json({
+      imageUrl: result.imageUrl,
+      promptUsed: result.promptUsed,
+      styleUsed: result.styleUsed,
+      provider: result.provider,
+      coverSettings: updatedCoverSettings,
+    });
+  } catch (err: any) {
+    console.error('Cover image edit error:', err);
+    res.status(500).json({ error: err.message || 'Gagal memodifikasi gambar cover' });
   }
 });
 

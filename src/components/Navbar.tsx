@@ -16,16 +16,14 @@ import { Ebook, UserProfile } from '../types/index.js';
 export type WorkflowStepId = 'idea' | 'outline' | 'content' | 'editor' | 'cover' | 'export';
 
 interface NavbarProps {
-  currentView: 'landing' | 'login' | 'dashboard' | 'workflow';
+  currentView: 'landing' | 'dashboard' | 'workflow';
   workflowStep?: WorkflowStepId;
   activeEbook?: Ebook | null;
   user: UserProfile | null;
-  onNavigateView: (view: 'landing' | 'login' | 'dashboard') => void;
+  onNavigateView: (view: 'landing' | 'dashboard') => void;
   onNavigateStep: (step: WorkflowStepId) => void;
   onOpenNewEbook: () => void;
-  onOpenAuth: (mode?: 'login' | 'register') => void;
   onOpenSettings: (tab?: 'profile' | 'ai_settings') => void;
-  onLogout: () => void;
 }
 
 const STEPS: { id: WorkflowStepId; label: string; number: number }[] = [
@@ -45,9 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateView,
   onNavigateStep,
   onOpenNewEbook,
-  onOpenAuth,
   onOpenSettings,
-  onLogout,
 }) => {
   const [userDropdownOpen, setUserDropdownOpen] = React.useState(false);
 
@@ -134,128 +130,121 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right: Actions and User Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {user ? (
-            <>
-              {/* Quick AI API Configuration Button */}
-              <button
-                onClick={() => onOpenSettings('ai_settings')}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200 transition-colors shrink-0"
-                title="Atur Custom API (Codex, OpenCode, OpenRouter, Gemini)"
-              >
-                <Cpu className="w-3.5 h-3.5 text-blue-600" />
-                <span className="hidden sm:inline">Custom API</span>
-                <span className="sm:hidden text-[11px]">API</span>
-              </button>
-
-              {currentView !== 'workflow' && (
-                <button
-                  onClick={onOpenNewEbook}
-                  className="hidden sm:flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-xs hover:shadow transition-all shrink-0"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Buat Ebook Baru</span>
-                </button>
-              )}
-
-              {/* User Avatar & Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-linear-to-tr from-blue-600 to-indigo-600 text-white font-semibold text-xs flex items-center justify-center shadow-xs">
-                    {user.displayName.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-xs font-medium text-slate-700 max-w-[120px] truncate">
-                    {user.displayName}
-                  </span>
-                </button>
-
-                {userDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-30"
-                      onClick={() => setUserDropdownOpen(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100 text-xs">
-                      <div className="px-3.5 py-2.5 border-b border-slate-100">
-                        <p className="font-semibold text-slate-800 truncate">{user.displayName}</p>
-                        <p className="text-slate-500 truncate">{user.email}</p>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          onNavigateView('dashboard');
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2"
-                      >
-                        <BookOpen className="w-4 h-4 text-slate-500" />
-                        Dashboard Saya
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          onOpenSettings('ai_settings');
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-blue-700 font-semibold flex items-center gap-2"
-                      >
-                        <Cpu className="w-4 h-4 text-blue-600" />
-                        Pengaturan Custom API
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          onOpenSettings('profile');
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2"
-                      >
-                        <Settings className="w-4 h-4 text-slate-500" />
-                        Profil Akun
-                      </button>
-
-                      <div className="border-t border-slate-100 my-1"></div>
-
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          onLogout();
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
-                      >
-                        <LogOut className="w-4 h-4 text-red-500" />
-                        Keluar (Logout)
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          ) : currentView === 'login' ? (
+          {/* View switcher between Landing and Dashboard */}
+          {currentView === 'landing' ? (
+            <button
+              onClick={() => onNavigateView('dashboard')}
+              className="text-xs sm:text-sm font-semibold text-slate-700 hover:text-blue-600 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <BookOpen className="w-4 h-4 text-blue-600" />
+              <span>Dashboard</span>
+            </button>
+          ) : currentView === 'dashboard' ? (
             <button
               onClick={() => onNavigateView('landing')}
-              className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 px-3.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Beranda
             </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onOpenAuth('login')}
-                className="text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                Masuk
-              </button>
-              <button
-                onClick={() => onOpenAuth('register')}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
-              >
-                Mulai Gratis
-              </button>
-            </div>
+          ) : null}
+
+          {/* Quick AI API Configuration Button */}
+          <button
+            onClick={() => onOpenSettings('ai_settings')}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200 transition-colors shrink-0 cursor-pointer"
+            title="Atur Custom API (Codex, OpenCode, OpenRouter, Gemini)"
+          >
+            <Cpu className="w-3.5 h-3.5 text-blue-600" />
+            <span className="hidden sm:inline">Custom API</span>
+            <span className="sm:hidden text-[11px]">API</span>
+          </button>
+
+          {/* Create New Ebook CTA Button */}
+          {currentView !== 'workflow' && (
+            <button
+              onClick={onOpenNewEbook}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-xs hover:shadow transition-all shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Buat Ebook Baru</span>
+              <span className="sm:hidden">Buat Ebook</span>
+            </button>
           )}
+
+          {/* User Profile Avatar & Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-colors cursor-pointer"
+              title="Menu Pengguna"
+            >
+              <div className="w-8 h-8 rounded-full bg-linear-to-tr from-blue-600 to-indigo-600 text-white font-semibold text-xs flex items-center justify-center shadow-xs">
+                {(user?.displayName || 'Penulis').charAt(0).toUpperCase()}
+              </div>
+              <span className="text-xs font-medium text-slate-700 max-w-[120px] truncate hidden md:inline">
+                {user?.displayName || 'Penulis Ebook'}
+              </span>
+            </button>
+
+            {userDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setUserDropdownOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100 text-xs">
+                  <div className="px-3.5 py-2.5 border-b border-slate-100">
+                    <p className="font-semibold text-slate-800 truncate">{user?.displayName || 'Penulis Ebook'}</p>
+                    <p className="text-slate-500 truncate">{user?.email || 'creator@ebookgenerator.com'}</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      onNavigateView('dashboard');
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2 cursor-pointer"
+                  >
+                    <BookOpen className="w-4 h-4 text-slate-500" />
+                    Dashboard Ebook
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      onOpenNewEbook();
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 text-blue-600" />
+                    Mulai Tulis Ebook Baru
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      onOpenSettings('ai_settings');
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-blue-700 font-semibold flex items-center gap-2 cursor-pointer"
+                  >
+                    <Cpu className="w-4 h-4 text-blue-600" />
+                    Pengaturan Custom API
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      onOpenSettings('profile');
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 text-slate-500" />
+                    Profil Pengguna
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
