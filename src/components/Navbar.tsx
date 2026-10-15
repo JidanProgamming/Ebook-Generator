@@ -16,14 +16,14 @@ import { Ebook, UserProfile } from '../types/index.js';
 export type WorkflowStepId = 'idea' | 'outline' | 'content' | 'editor' | 'cover' | 'export';
 
 interface NavbarProps {
-  currentView: 'landing' | 'dashboard' | 'workflow';
+  currentView: 'landing' | 'login' | 'dashboard' | 'workflow';
   workflowStep?: WorkflowStepId;
   activeEbook?: Ebook | null;
   user: UserProfile | null;
-  onNavigateView: (view: 'landing' | 'dashboard') => void;
+  onNavigateView: (view: 'landing' | 'login' | 'dashboard') => void;
   onNavigateStep: (step: WorkflowStepId) => void;
   onOpenNewEbook: () => void;
-  onOpenAuth: () => void;
+  onOpenAuth: (mode?: 'login' | 'register') => void;
   onOpenSettings: (tab?: 'profile' | 'ai_settings') => void;
   onLogout: () => void;
 }
@@ -233,17 +233,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
             </>
+          ) : currentView === 'login' ? (
+            <button
+              onClick={() => onNavigateView('landing')}
+              className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 px-3.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              Beranda
+            </button>
           ) : (
             <div className="flex items-center gap-2">
               <button
-                onClick={onOpenAuth}
-                className="text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+                onClick={() => onOpenAuth('login')}
+                className="text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 Masuk
               </button>
               <button
-                onClick={onOpenAuth}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl shadow-xs transition-all"
+                onClick={() => onOpenAuth('register')}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
               >
                 Mulai Gratis
               </button>

@@ -34,6 +34,9 @@ export interface GenerateCoverParams {
   idea?: string;
   visualStyle?: CoverVisualStyle;
   customPrompt?: string;
+  imageSize?: '1K' | '2K' | '4K';
+  imageToEdit?: string;
+  editInstruction?: string;
 }
 
 export interface GeneratePromptParams {
@@ -154,36 +157,67 @@ export async function generateCoverImage(
     ? `${params.customPrompt.trim()}, ${baseDescription}, vertical portrait 3:4 book cover background art without text, 8k resolution`
     : `A captivating vertical book cover background for a book titled "${params.title}"${params.subtitle ? ` (${params.subtitle})` : ''}${params.tagline ? ` with badge "${params.tagline}"` : ''}. Visual style: ${baseDescription}. Aesthetic background illustration only, high aesthetic quality, clean portrait aspect ratio.`;
 
-  // 1. Call Google AI Studio Image Generation Model ONLY if custom apiKey is configured
-  if (aiSettings?.apiKey) {
-    const ai = getGeminiClient(aiSettings.apiKey);
-    if (ai) {
-      try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-lite-image',
-          contents: prompt,
-          config: {
-            imageConfig: {
-              aspectRatio: '3:4',
-            },
+  // 1. Call Gemini Nano Banana 2.1 (gemini-nano-banana-2.1) for Create & Edit images
+  const ai = getGeminiClient(aiSettings?.apiKey);
+  if (ai) {
+    try {
+      const parts: any[] = [];
+      const isEditing = !!(params.imageToEdit && params.imageToEdit.startsWith('data:image'));
+
+      if (isEditing) {
+        // Edit mode: provide existing image base64 + instruction
+        const mimeType = params.imageToEdit!.match(/data:([^;]+);/)?.[1] || 'image/png';
+        const base64Data = params.imageToEdit!.replace(/^data:[^;]+;base64,/, '');
+        parts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType,
           },
         });
+        const editPrompt =
+          params.editInstruction?.trim() ||
+          params.customPrompt?.trim() ||
+          'Enhance and edit this book cover artwork, vertical 3:4 portrait, retain clean negative space for typography, high aesthetic quality, no text';
+        parts.push({
+          text: editPrompt,
+        });
+      } else {
+        // Create mode: text prompt
+        parts.push({
+          text: prompt,
+        });
+      }
 
-        const parts = response.candidates?.[0]?.content?.parts || [];
-        const imagePart = parts.find((p) => p.inlineData && p.inlineData.data);
-        if (imagePart && imagePart.inlineData) {
-          const mimeType = imagePart.inlineData.mimeType || 'image/png';
-          const base64Data = imagePart.inlineData.data;
+      const response = await ai.models.generateContent({
+        model: 'gemini-nano-banana-2.1',
+        contents: {
+          parts,
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: '3:4',
+            imageSize: params.imageSize || '1K',
+          },
+        },
+      });
+
+      const returnedParts = response.candidates?.[0]?.content?.parts || [];
+      for (const part of returnedParts) {
+        if (part.inlineData?.data) {
+          const mimeType = part.inlineData.mimeType || 'image/png';
+          const base64Data = part.inlineData.data;
           return {
             imageUrl: `data:${mimeType};base64,${base64Data}`,
-            promptUsed: prompt,
+            promptUsed: isEditing ? (params.editInstruction || prompt) : prompt,
             styleUsed: style,
-            provider: 'gemini',
-          };
+            provider: 'nano_banana_2.1' as any,
+            imageSize: params.imageSize || '1K',
+            mode: isEditing ? 'edit' : 'create',
+          } as any;
         }
-      } catch {
-        // Fall through to procedural engine
       }
+    } catch {
+      // Gracefully fall back to procedural artwork engine if quota or network issue occurs
     }
   }
 

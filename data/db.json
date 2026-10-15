@@ -6,6 +6,27 @@
       "displayName": "Demo Creator",
       "passwordHash": "4aad6e907445a50e3abda9315259cf985aa5d312c014a9a5c171933054e3386a",
       "createdAt": "2026-10-11T10:51:29.754Z"
+    },
+    {
+      "id": "usr_b288daeb",
+      "email": "zidan051267@gmail.com",
+      "displayName": "zidane",
+      "passwordHash": "ef1011750c57d339b1d6170b625dfb4dd451cb3877174bbdbaa4327dad7dd271",
+      "createdAt": "2026-10-15T07:24:49.697Z"
+    },
+    {
+      "id": "usr_a843d582",
+      "email": "test_1792049391950@example.com",
+      "displayName": "Test User",
+      "passwordHash": "ef1011750c57d339b1d6170b625dfb4dd451cb3877174bbdbaa4327dad7dd271",
+      "createdAt": "2026-10-15T07:29:51.953Z"
+    },
+    {
+      "id": "usr_7c20e8cb",
+      "email": "penulis_1792050152960@gmail.com",
+      "displayName": "Budi Santoso",
+      "passwordHash": "98147fba0e7ffdc4344e1290f98daeadfc57105afb5531cd0d8fa586ef6a5774",
+      "createdAt": "2026-10-15T07:42:32.963Z"
     }
   ],
   "ebooks": [

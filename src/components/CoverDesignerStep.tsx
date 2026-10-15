@@ -12,9 +12,12 @@ import {
   Trash2,
   Sliders,
   Wand2,
-  Copy,
   Lightbulb,
   FileText,
+  Palette,
+  Layers,
+  Cpu,
+  Edit3,
 } from 'lucide-react';
 import { CoverSettings, Ebook } from '../types/index.js';
 import { ebookApi } from '../lib/api.js';
@@ -42,6 +45,14 @@ const STYLE_CHIPS = [
   { label: '+ Tanpa Teks', append: ', background illustration only, no text, no letters, no typography' },
 ];
 
+const EDIT_PRESET_CHIPS = [
+  'Ubah pencahayaan jadi golden hour sunset dramatis',
+  'Tambahkan aksen partikel cahaya dan elemen futuristik',
+  'Buat atmosfer lebih gelap, misterius, dan kontras tinggi',
+  'Tambahkan detail tekstur visual dan efek kedalaman',
+  'Sederhanakan latar belakang agar lebih minimalis dan elegan',
+];
+
 export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
   ebook,
   onNavigateToExport,
@@ -60,6 +71,8 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
       bgImageUrl: existing.bgImageUrl,
       imagePrompt: existing.imagePrompt || '',
       imageStyle: existing.imageStyle || 'minimalist',
+      imageResolution: existing.imageResolution || '1K',
+      editInstruction: existing.editInstruction || '',
       overlayOpacity: existing.overlayOpacity !== undefined ? existing.overlayOpacity : 0.35,
     };
   });
@@ -73,8 +86,11 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
   });
 
   const [promptVariations, setPromptVariations] = useState<PromptVariationItem[]>([]);
+  const [resolution, setResolution] = useState<'1K' | '2K' | '4K'>(cover.imageResolution || '1K');
+  const [editInstruction, setEditInstruction] = useState<string>(cover.editInstruction || '');
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState<boolean>(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
+  const [isEditingImage, setIsEditingImage] = useState<boolean>(false);
   const [is3DView, setIs3DView] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
 
@@ -117,7 +133,7 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
     }
   };
 
-  // Handler: Generate Cover Image from Prompt
+  // Handler: Create Cover Image with Nano Banana 2.1
   const handleGenerateImageFromPrompt = async () => {
     if (!promptText.trim()) {
       showToast('Harap masukkan prompt terlebih dahulu atau gunakan bantuan AI untuk membuatnya', 'warning');
@@ -132,6 +148,7 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
         tagline: cover.tagline,
         customPrompt: promptText.trim(),
         visualStyle: (cover.imageStyle as CoverVisualStyle) || 'minimalist',
+        imageSize: resolution,
       });
 
       setCover((prev) => ({
@@ -139,15 +156,54 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
         bgImageUrl: res.imageUrl,
         imagePrompt: promptText.trim(),
         imageStyle: res.styleUsed,
+        imageResolution: resolution,
         template: 'ai_generated',
       }));
 
-      showToast('Gambar cover berhasil digenerate dari prompt!', 'success');
+      showToast(`Gambar cover berhasil digenerate dengan Nano Banana 2.1 (${resolution})!`, 'success');
     } catch (err: any) {
       console.error('Failed to generate cover image:', err);
       showToast(err.message || 'Gagal menghasilkan gambar cover', 'error');
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  // Handler: Edit Existing Cover Image with Nano Banana 2.1
+  const handleEditImageWithNanoBanana = async () => {
+    if (!cover.bgImageUrl) {
+      showToast('Belum ada gambar cover untuk diedit. Generate atau unggah gambar terlebih dahulu.', 'warning');
+      return;
+    }
+    if (!editInstruction.trim()) {
+      showToast('Tuliskan instruksi perubahan gambar yang Anda inginkan', 'warning');
+      return;
+    }
+
+    setIsEditingImage(true);
+    try {
+      const res = await ebookApi.editCoverImage(ebook.id, {
+        title: cover.title,
+        subtitle: cover.subtitle,
+        tagline: cover.tagline,
+        imageToEdit: cover.bgImageUrl,
+        editInstruction: editInstruction.trim(),
+        imageSize: resolution,
+      });
+
+      setCover((prev) => ({
+        ...prev,
+        bgImageUrl: res.imageUrl,
+        editInstruction: editInstruction.trim(),
+        imageResolution: resolution,
+      }));
+
+      showToast(`Gambar cover berhasil dimodifikasi dengan Nano Banana 2.1 (${resolution})!`, 'success');
+    } catch (err: any) {
+      console.error('Failed to edit image with Nano Banana 2.1:', err);
+      showToast(err.message || 'Gagal memodifikasi gambar cover', 'error');
+    } finally {
+      setIsEditingImage(false);
     }
   };
 
@@ -170,7 +226,7 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
     });
   };
 
-  // Handler: Custom image upload (fallback / manual preference)
+  // Handler: Custom image upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -207,6 +263,8 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
         coverSettings: {
           ...cover,
           imagePrompt: promptText,
+          imageResolution: resolution,
+          editInstruction,
         },
         status: 'ready_to_export',
       });
@@ -225,14 +283,20 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
-            Langkah 5 dari 6
-          </span>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
+              Langkah 5 dari 6
+            </span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 text-amber-800 text-[11px] font-bold">
+              <Cpu className="w-3.5 h-3.5 text-amber-600" />
+              Nano Banana 2.1 (Create & Edit)
+            </span>
+          </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Desainer Cover Ebook AI
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Generate gambar cover menggunakan prompt, dengan bantuan AI yang otomatis merancang prompt berdasarkan judul utama, subjudul, dan tagline buku.
+            Buat dan edit gambar sampul beresolusi tinggi menggunakan model <strong>Nano Banana 2.1</strong> dari Google AI Studio dengan panduan prompt otomatis.
           </p>
         </div>
 
@@ -247,7 +311,7 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: AI Prompt Generator, Prompt Box & Typography (7 cols) */}
+        {/* Left Column: AI Prompt Assistant, Create/Edit with Nano Banana 2.1 & Typography (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
 
           {/* SECTION 1: BANTUAN AI UNTUK MEMBUAT PROMPT GAMBAR COVER */}
@@ -262,7 +326,7 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
                     Bantuan AI: Pembuat Prompt Gambar
                   </h3>
                   <p className="text-xs text-slate-500">
-                    AI merumuskan prompt visual berdasarkan judul, subjudul & tagline
+                    Merumuskan prompt visual berdasarkan judul, subjudul & tagline
                   </p>
                 </div>
               </div>
@@ -336,24 +400,34 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
             )}
           </div>
 
-          {/* SECTION 2: KOTAK PROMPT & GENERATE GAMBAR */}
+          {/* SECTION 2: CREATE IMAGES WITH NANO BANANA 2.1 */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-blue-600" />
-                Prompt Gambar Cover <span className="text-slate-400 font-normal lowercase">(bisa diedit)</span>
-              </label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  1. Buat Gambar Baru (Create Image)
+                </label>
+              </div>
 
-              {cover.bgImageUrl && (
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Hapus Gambar
-                </button>
-              )}
+              {/* Nano Banana 2.1 Resolution Selector */}
+              <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-100 p-1 rounded-xl">
+                <span className="text-[10px] font-semibold text-slate-500 px-1.5">Resolusi:</span>
+                {(['1K', '2K', '4K'] as const).map((res) => (
+                  <button
+                    key={res}
+                    type="button"
+                    onClick={() => setResolution(res)}
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                      resolution === res
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                    }`}
+                  >
+                    {res}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Prompt Textarea */}
@@ -362,7 +436,7 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
                 rows={4}
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
-                placeholder="Masukkan prompt gambar cover di sini, atau klik tombol 'Buat Prompt dengan AI' di atas untuk merancangnya secara otomatis..."
+                placeholder="Deskripsikan ide gambar cover Anda, atau gunakan tombol 'Buat Prompt dengan AI' di atas..."
                 className="w-full p-3.5 text-xs font-mono text-slate-800 bg-slate-50/60 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white outline-none leading-relaxed transition-all resize-none"
               />
               <span className="absolute bottom-2.5 right-3 text-[10px] text-slate-400 font-sans pointer-events-none">
@@ -389,8 +463,8 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
               </div>
             </div>
 
-            {/* Primary Action Button: Generate Image from Prompt */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
+            {/* Action Buttons: Create with Nano Banana 2.1 */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
               <button
                 type="button"
                 onClick={handleGenerateImageFromPrompt}
@@ -400,12 +474,12 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
                 {isGeneratingImage ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Sedang Membuat Gambar dari Prompt...</span>
+                    <span>Sedang Membuat Gambar dengan Nano Banana 2.1 ({resolution})...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>{cover.bgImageUrl ? 'Generate Ulang Gambar dari Prompt' : 'Generate Gambar Cover dari Prompt'}</span>
+                    <span>{cover.bgImageUrl ? 'Generate Ulang Cover (Nano Banana 2.1)' : `Generate Gambar Cover (Nano Banana 2.1 • ${resolution})`}</span>
                   </>
                 )}
               </button>
@@ -420,39 +494,129 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
                   className="hidden"
                 />
               </label>
-            </div>
 
-            {/* Overlay Darkness / Readability Slider (if image exists) */}
-            {cover.bgImageUrl && (
-              <div className="pt-3 border-t border-slate-100 space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-blue-600" />
-                    Kontras Gelap Teks (Overlay)
-                  </span>
-                  <span className="font-mono text-slate-500">
-                    {Math.round((cover.overlayOpacity ?? 0.35) * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="0.85"
-                  step="0.05"
-                  value={cover.overlayOpacity ?? 0.35}
-                  onChange={(e) =>
-                    setCover({ ...cover, overlayOpacity: parseFloat(e.target.value) })
-                  }
-                  className="w-full accent-blue-600 cursor-pointer"
-                />
-                <p className="text-[10px] text-slate-400">
-                  Geser untuk memastikan judul dan teks terlihat tajam dan mudah dibaca di atas gambar latar.
-                </p>
-              </div>
-            )}
+              {cover.bgImageUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="px-3 py-3 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+                  title="Hapus Gambar"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* SECTION 3: TEXT CONTENT (Judul Utama, Subjudul, Tagline/Badge, Penulis) */}
+          {/* SECTION 3: EDIT IMAGES WITH NANO BANANA 2.1 (TAMPIL KETIKA GAMBAR SUDAH ADA) */}
+          {cover.bgImageUrl && (
+            <div className="bg-linear-to-br from-amber-50/60 via-orange-50/30 to-white rounded-2xl border border-amber-200/90 p-5 sm:p-6 shadow-xs space-y-4 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-300 flex items-center justify-center text-amber-700">
+                    <Edit3 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      2. Edit & Modifikasi Gambar (Nano Banana 2.1)
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Ubah atau tambahkan elemen visual pada gambar cover aktif saat ini
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  Image-to-Image Edit
+                </span>
+              </div>
+
+              {/* Edit Instruction Input */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Instruksi Pengeditan Visual:
+                </label>
+                <div className="relative">
+                  <textarea
+                    rows={2}
+                    value={editInstruction}
+                    onChange={(e) => setEditInstruction(e.target.value)}
+                    placeholder="Contoh: Ubah pencahayaan menjadi golden hour sunset dramatis dan tambahkan siluet burung mengambang..."
+                    className="w-full p-3 text-xs text-slate-800 bg-white border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none resize-none leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Preset Edit Chips */}
+              <div>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                  Saran Cepat Pengeditan:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {EDIT_PRESET_CHIPS.map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setEditInstruction(chip)}
+                      className="text-[10px] px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100/60 border border-amber-200/80 text-amber-900 transition-colors cursor-pointer"
+                    >
+                      + {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Edit Execution Button */}
+              <button
+                type="button"
+                onClick={handleEditImageWithNanoBanana}
+                disabled={isEditingImage || !editInstruction.trim()}
+                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-linear-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-xs hover:shadow transition-all disabled:opacity-60 cursor-pointer"
+              >
+                {isEditingImage ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Sedang Mengedit Gambar dengan Nano Banana 2.1 ({resolution})...</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-3.5 h-3.5" />
+                    <span>Edit Gambar Ini dengan Nano Banana 2.1 ({resolution})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* SECTION 4: TEXT CONTRAST OVERLAY SLIDER */}
+          {cover.bgImageUrl && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-blue-600" />
+                  Kontras Gelap Teks (Overlay)
+                </span>
+                <span className="font-mono text-slate-500">
+                  {Math.round((cover.overlayOpacity ?? 0.35) * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="0.85"
+                step="0.05"
+                value={cover.overlayOpacity ?? 0.35}
+                onChange={(e) =>
+                  setCover({ ...cover, overlayOpacity: parseFloat(e.target.value) })
+                }
+                className="w-full accent-blue-600 cursor-pointer"
+              />
+              <p className="text-[10px] text-slate-400">
+                Atur kepekatan lapisan gelap agar teks judul dan subjudul tetap terbaca tajam di atas gambar cover.
+              </p>
+            </div>
+          )}
+
+          {/* SECTION 5: TEXT CONTENT (Judul Utama, Subjudul, Tagline/Badge, Penulis) */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
               <Type className="w-4 h-4 text-blue-600" />
@@ -514,7 +678,7 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
             </div>
           </div>
 
-          {/* SECTION 4: FONT STYLE & TEXT ALIGNMENT (PRESERVED) */}
+          {/* SECTION 6: FONT STYLE & TEXT ALIGNMENT (PRESERVED) */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
               <Type className="w-4 h-4 text-blue-600" />
@@ -695,14 +859,17 @@ export const CoverDesignerStep: React.FC<CoverDesignerStepProps> = ({
             </div>
 
             {/* Hint & Status */}
-            <div className="mt-3 text-left bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <p className="text-[11px] text-slate-600 flex items-start gap-1.5">
-                <span className="text-blue-600 font-bold shrink-0">ℹ</span>
-                <span>
-                  {cover.bgImageUrl
-                    ? 'Gambar cover telah aktif dan akan otomatis disertakan sebagai halaman muka di file PDF dan EPUB.'
-                    : 'Gunakan bantuan AI di atas untuk membuat prompt dari judul dan subjudul, lalu klik "Generate Gambar Cover dari Prompt".'}
+            <div className="mt-3 text-left bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700">
+                <span>Mesin AI Cover:</span>
+                <span className="text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  Nano Banana 2.1 ({resolution})
                 </span>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                {cover.bgImageUrl
+                  ? 'Gambar cover aktif. Anda dapat mengeditnya menggunakan form edit di sebelah kiri atau mengunduhnya saat ekspor.'
+                  : 'Gunakan bantuan AI di atas untuk membuat prompt, lalu buat cover baru dengan tombol "Generate Gambar Cover (Nano Banana 2.1)".'}
               </p>
             </div>
           </div>

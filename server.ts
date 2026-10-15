@@ -8,6 +8,7 @@ import {
   findUserById,
   createUser,
   verifyUserPassword,
+  updateUserPassword,
   getEbooksByUserId,
   getEbookById,
   createEbook,
@@ -86,18 +87,31 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
 app.post('/api/auth/register', (req: Request, res: Response) => {
   try {
     const { email, password, displayName } = req.body;
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email dan password wajib diisi' });
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      res.status(400).json({ error: 'Email dan kata sandi wajib diisi.' });
       return;
     }
 
-    const existing = findUserByEmail(email);
+    if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      res.status(400).json({ error: 'Format email tidak valid. Harap gunakan alamat email yang benar.' });
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      res.status(400).json({ error: 'Kata sandi minimal 6 karakter.' });
+      return;
+    }
+
+    const existing = findUserByEmail(cleanEmail);
     if (existing) {
-      res.status(400).json({ error: 'Email sudah terdaftar. Silakan gunakan email lain atau login.' });
+      res.status(400).json({ error: 'Email sudah terdaftar. Silakan gunakan menu Masuk atau gunakan opsi Lupa Kata Sandi.' });
       return;
     }
 
-    const user = createUser(email, password, displayName || 'Penulis');
+    const user = createUser(cleanEmail, cleanPassword, displayName || 'Penulis');
     res.json({
       token: user.id,
       user: {
@@ -108,21 +122,24 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Gagal mendaftar' });
+    res.status(500).json({ error: err.message || 'Gagal mendaftar akun baru.' });
   }
 });
 
 app.post('/api/auth/login', (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email dan password wajib diisi' });
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      res.status(400).json({ error: 'Email dan kata sandi wajib diisi.' });
       return;
     }
 
-    const user = findUserByEmail(email);
-    if (!user || !verifyUserPassword(user, password)) {
-      res.status(401).json({ error: 'Email atau password tidak sesuai' });
+    const user = findUserByEmail(cleanEmail);
+    if (!user || !verifyUserPassword(user, cleanPassword)) {
+      res.status(401).json({ error: 'Email atau kata sandi tidak cocok. Silakan periksa kembali atau gunakan opsi Reset Kata Sandi.' });
       return;
     }
 
@@ -136,7 +153,42 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Gagal masuk' });
+    res.status(500).json({ error: err.message || 'Gagal masuk akun.' });
+  }
+});
+
+app.post('/api/auth/reset-password', (req: Request, res: Response) => {
+  try {
+    const { email, newPassword } = req.body;
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (newPassword || '').trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      res.status(400).json({ error: 'Email dan kata sandi baru wajib diisi.' });
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      res.status(400).json({ error: 'Kata sandi baru minimal 6 karakter.' });
+      return;
+    }
+
+    const user = updateUserPassword(cleanEmail, cleanPassword);
+    if (!user) {
+      res.status(404).json({ error: 'Akun dengan alamat email ini tidak ditemukan. Silakan daftar akun baru.' });
+      return;
+    }
+
+    res.json({
+      message: 'Kata sandi berhasil diperbarui! Silakan masuk menggunakan kata sandi baru Anda.',
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Gagal memperbarui kata sandi.' });
   }
 });
 

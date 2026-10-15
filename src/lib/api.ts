@@ -95,6 +95,13 @@ export const authApi = {
     return user;
   },
 
+  async resetPassword(email: string, newPassword: string) {
+    return request<{ message: string; user: UserProfile }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, newPassword }),
+    });
+  },
+
   logout() {
     clearAuth();
   },

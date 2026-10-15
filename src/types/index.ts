@@ -49,6 +49,8 @@ export interface CoverSettings {
   bgImageUrl?: string;
   imagePrompt?: string;
   imageStyle?: string;
+  imageResolution?: '1K' | '2K' | '4K';
+  editInstruction?: string;
   overlayOpacity?: number;
   showPattern?: boolean;
 }

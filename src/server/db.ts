@@ -207,20 +207,24 @@ export function saveDatabase(data: DatabaseSchema): void {
 
 // User Helpers
 export function findUserByEmail(email: string): UserRecord | undefined {
+  if (!email) return undefined;
+  const clean = email.trim().toLowerCase();
   const db = getDatabase();
-  return db.profiles.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  return db.profiles.find((u) => u.email.trim().toLowerCase() === clean);
 }
 
 export function findUserById(id: string): UserRecord | undefined {
+  if (!id) return undefined;
   const db = getDatabase();
   return db.profiles.find((u) => u.id === id);
 }
 
 export function createUser(email: string, password: string, displayName: string): UserRecord {
   const db = getDatabase();
+  const cleanEmail = email.trim().toLowerCase();
   const newUser: UserRecord = {
     id: 'usr_' + crypto.randomUUID().slice(0, 8),
-    email: email.toLowerCase().trim(),
+    email: cleanEmail,
     displayName: displayName.trim() || 'Penulis',
     passwordHash: hashPassword(password),
     createdAt: new Date().toISOString(),
@@ -232,6 +236,18 @@ export function createUser(email: string, password: string, displayName: string)
 
 export function verifyUserPassword(user: UserRecord, password: string): boolean {
   return user.passwordHash === hashPassword(password);
+}
+
+export function updateUserPassword(email: string, newPassword: string): UserRecord | null {
+  const clean = (email || '').trim().toLowerCase();
+  const db = getDatabase();
+  const user = db.profiles.find((u) => u.email.trim().toLowerCase() === clean);
+  if (!user) {
+    return null;
+  }
+  user.passwordHash = hashPassword(newPassword);
+  saveDatabase(db);
+  return user;
 }
 
 export function getUserAISettings(userId: string): AISettings {

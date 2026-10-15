@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ToastProvider, useToast } from './components/Toast.js';
 import { Navbar, WorkflowStepId } from './components/Navbar.js';
 import { LandingPage } from './components/LandingPage.js';
+import { LoginPage } from './components/LoginPage.js';
 import { AuthModal } from './components/AuthModal.js';
 import { Dashboard } from './components/Dashboard.js';
 import { IdeaInputStep } from './components/IdeaInputStep.js';
@@ -16,7 +17,7 @@ import { authApi, ebookApi, getAuthToken, getStoredUser } from './lib/api.js';
 
 function MainApp() {
   const [user, setUser] = useState<UserProfile | null>(getStoredUser());
-  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'workflow'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard' | 'workflow'>('landing');
   const [workflowStep, setWorkflowStep] = useState<WorkflowStepId>('idea');
   const [activeEbook, setActiveEbook] = useState<Ebook | null>(null);
   const [editorInitialChapterId, setEditorInitialChapterId] = useState<string | undefined>(undefined);
@@ -25,6 +26,7 @@ function MainApp() {
   const [loadingEbooks, setLoadingEbooks] = useState(false);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountModalTab, setAccountModalTab] = useState<'profile' | 'ai_settings'>('profile');
 
@@ -43,16 +45,11 @@ function MainApp() {
           // Token expired or invalid
           authApi.logout();
           setUser(null);
+          setCurrentView('landing');
         }
       } else {
-        // If no token, auto-login with demo user so user has instant zero-friction experience!
-        try {
-          const demoRes = await authApi.login('demo@ebookgenerator.com', 'demo123');
-          setUser(demoRes.user);
-          setCurrentView('dashboard');
-        } catch {
-          // Stay on landing if demo login fails
-        }
+        // Not logged in: show landing page
+        setUser(null);
       }
     };
     initAuth();
@@ -152,7 +149,10 @@ function MainApp() {
           setWorkflowStep(step);
         }}
         onOpenNewEbook={handleCreateNewEbook}
-        onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenAuth={(mode) => {
+          setAuthModalMode(mode || 'login');
+          setAuthModalOpen(true);
+        }}
         onOpenSettings={(tab) => {
           setAccountModalTab(tab || 'profile');
           setAccountModalOpen(true);
@@ -169,16 +169,33 @@ function MainApp() {
               if (user) {
                 setCurrentView('dashboard');
               } else {
-                setAuthModalOpen(true);
+                setAuthModalMode('register');
+                setCurrentView('login');
               }
             }}
-            onOpenDemo={() => {
-              setAuthModalOpen(true);
+            onOpenDemo={async () => {
+              try {
+                const demoRes = await authApi.login('demo@ebookgenerator.com', 'demo123');
+                showToast(`Masuk sebagai ${demoRes.user.displayName}`, 'success');
+                handleAuthSuccess(demoRes.user);
+              } catch {
+                setAuthModalMode('login');
+                setAuthModalOpen(true);
+              }
             }}
           />
         )}
 
-        {/* VIEW 2: DASHBOARD */}
+        {/* VIEW 2: DEDICATED LOGIN / REGISTER PAGE */}
+        {currentView === 'login' && (
+          <LoginPage
+            initialMode={authModalMode}
+            onLoginSuccess={handleAuthSuccess}
+            onNavigateBack={() => setCurrentView('landing')}
+          />
+        )}
+
+        {/* VIEW 3: DASHBOARD */}
         {currentView === 'dashboard' && user && (
           <Dashboard
             user={user}
@@ -273,6 +290,7 @@ function MainApp() {
       {/* Modals */}
       <AuthModal
         isOpen={authModalOpen}
+        initialMode={authModalMode}
         onClose={() => setAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
       />
