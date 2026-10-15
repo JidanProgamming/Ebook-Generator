@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Editorial styling for contentEditable area & outline preview */
+.ebook-editor-body h1 {
+  font-size: 1.5rem;
+  line-height: 1.9rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 1.25rem;
+  margin-bottom: 0.65rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.45rem;
+}
+
+@media (min-width: 640px) {
+  .ebook-editor-body h1 {
+    font-size: 2.15rem;
+    line-height: 2.5rem;
+    margin-top: 1.75rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+.ebook-editor-body h2 {
+  font-size: 1.25rem;
+  line-height: 1.65rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .ebook-editor-body h2 {
+    font-size: 1.55rem;
+    line-height: 2rem;
+    margin-top: 1.5rem;
+  }
+}
+
+.ebook-editor-body h3 {
+  font-size: 1.05rem;
+  line-height: 1.45rem;
+  font-weight: 600;
+  color: #334155;
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+@media (min-width: 640px) {
+  .ebook-editor-body h3 {
+    font-size: 1.2rem;
+    line-height: 1.6rem;
+    margin-top: 1.25rem;
+  }
+}
+
+.ebook-editor-body p {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.8;
+  color: #334155;
+  text-align: justify;
+}
+
+@media (min-width: 640px) {
+  .ebook-editor-body p {
+    line-height: 1.85;
+  }
+}
+
+.ebook-editor-body blockquote {
+  border-left: 4px solid #3b82f6;
+  background-color: #eff6ff;
+  color: #1e3a8a;
+  font-style: italic;
+  padding: 0.75rem 1rem;
+  margin: 1.25rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.ebook-editor-body ul {
+  list-style-type: disc;
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+  color: #334155;
+}
+
+.ebook-editor-body ol {
+  list-style-type: decimal;
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+  color: #334155;
+}
+
+.ebook-editor-body li {
+  margin-bottom: 0.35rem;
+  line-height: 1.7;
+}
+
+.ebook-editor-body strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ebook-editor-body em {
+  font-style: italic;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
