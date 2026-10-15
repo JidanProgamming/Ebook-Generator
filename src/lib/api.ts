@@ -10,6 +10,15 @@ import {
 
 const TOKEN_KEY = 'ebook_auth_token';
 const USER_KEY = 'ebook_user_profile';
+const AI_SETTINGS_KEY = 'ebook_custom_ai_settings';
+
+export interface StoredAISettings {
+  provider: string;
+  model: string;
+  baseUrl?: string;
+  apiKey?: string;
+  temperature?: number;
+}
 
 export function getAuthToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -42,6 +51,24 @@ export function clearAuth(): void {
   localStorage.removeItem(USER_KEY);
 }
 
+export function getStoredAISettings(): StoredAISettings | null {
+  const raw = localStorage.getItem(AI_SETTINGS_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredAISettings(settings: StoredAISettings | null): void {
+  if (settings) {
+    localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
+  } else {
+    localStorage.removeItem(AI_SETTINGS_KEY);
+  }
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
   const headers: Record<string, string> = {
@@ -51,6 +78,16 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Forward custom AI settings on every API call for serverless & Vercel deployment reliability
+  const aiSettings = getStoredAISettings();
+  if (aiSettings) {
+    headers['x-ai-settings'] = encodeURIComponent(JSON.stringify(aiSettings));
+    if (aiSettings.provider) headers['x-ai-provider'] = aiSettings.provider;
+    if (aiSettings.model) headers['x-ai-model'] = aiSettings.model;
+    if (aiSettings.baseUrl) headers['x-ai-base-url'] = aiSettings.baseUrl;
+    if (aiSettings.apiKey) headers['x-ai-key'] = aiSettings.apiKey;
   }
 
   const response = await fetch(endpoint, {
@@ -297,8 +334,39 @@ export const settingsApi = {
     baseUrl: string;
     hasCustomApiKey: boolean;
     temperature: number;
+    cachedKey?: string;
   }> {
-    return request('/api/settings/ai');
+    const stored = getStoredAISettings();
+    try {
+      const serverSettings = await request<{
+        provider: string;
+        model: string;
+        baseUrl: string;
+        hasCustomApiKey: boolean;
+        temperature: number;
+      }>('/api/settings/ai');
+
+      if (stored) {
+        return {
+          provider: stored.provider || serverSettings.provider,
+          model: stored.model || serverSettings.model,
+          baseUrl: stored.baseUrl || serverSettings.baseUrl,
+          hasCustomApiKey: !!stored.apiKey || serverSettings.hasCustomApiKey,
+          temperature: stored.temperature ?? serverSettings.temperature ?? 0.7,
+          cachedKey: stored.apiKey || '',
+        };
+      }
+      return serverSettings;
+    } catch {
+      return {
+        provider: stored?.provider || 'gemini',
+        model: stored?.model || 'gemini-3.8-flash',
+        baseUrl: stored?.baseUrl || '',
+        hasCustomApiKey: !!stored?.apiKey,
+        temperature: stored?.temperature ?? 0.7,
+        cachedKey: stored?.apiKey || '',
+      };
+    }
   },
 
   async updateAISettings(data: {
@@ -314,6 +382,17 @@ export const settingsApi = {
     hasCustomApiKey: boolean;
     temperature: number;
   }> {
+    // Preserve in local storage immediately
+    const prev = getStoredAISettings() || { provider: 'gemini', model: 'gemini-3.8-flash' };
+    const toSave: StoredAISettings = {
+      provider: data.provider || prev.provider,
+      model: data.model || prev.model,
+      baseUrl: data.baseUrl !== undefined ? data.baseUrl : prev.baseUrl,
+      temperature: data.temperature ?? prev.temperature,
+      apiKey: data.apiKey ? data.apiKey : prev.apiKey,
+    };
+    setStoredAISettings(toSave);
+
     return request('/api/settings/ai', {
       method: 'POST',
       body: JSON.stringify(data),

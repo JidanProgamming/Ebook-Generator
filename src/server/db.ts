@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import os from 'os';
 import { Chapter, CoverSettings, Ebook, EbookExport, AIGenerationLog, AISettings } from '../types/index.js';
 
 export interface UserRecord {
@@ -20,7 +21,10 @@ interface DatabaseSchema {
   ai_generations: AIGenerationLog[];
 }
 
-const DATA_DIR = path.resolve(process.cwd(), 'data');
+const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NOW_REGION);
+const DATA_DIR = isServerless
+  ? path.join(os.tmpdir(), 'ebook_data')
+  : path.resolve(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 function hashPassword(password: string): string {
@@ -44,12 +48,12 @@ function getDefaultCoverSettings(title: string, author: string = 'Penulis'): Cov
 }
 
 function initializeDatabase(): DatabaseSchema {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
 
-  if (fs.existsSync(DB_FILE)) {
-    try {
+    if (fs.existsSync(DB_FILE)) {
       const content = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(content);
       return {
@@ -59,9 +63,9 @@ function initializeDatabase(): DatabaseSchema {
         ebook_exports: parsed.ebook_exports || [],
         ai_generations: parsed.ai_generations || [],
       };
-    } catch (err) {
-      console.error('Error reading existing DB, recreating:', err);
     }
+  } catch (err) {
+    console.warn('Database directory/file access skipped (in-memory mode):', err);
   }
 
   // Initial seed with demo user
@@ -197,11 +201,14 @@ export function getDatabase(): DatabaseSchema {
 export function saveDatabase(data: DatabaseSchema): void {
   dbCache = data;
   try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
     const tempFile = DB_FILE + '.tmp';
     fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
     fs.renameSync(tempFile, DB_FILE);
   } catch (err) {
-    console.error('Failed to save database file:', err);
+    console.warn('Database write to disk skipped (in-memory state preserved):', (err as any)?.message || err);
   }
 }
 

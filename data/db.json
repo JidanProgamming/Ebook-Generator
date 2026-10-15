@@ -5,7 +5,12 @@
       "email": "demo@ebookgenerator.com",
       "displayName": "Demo Creator",
       "passwordHash": "4aad6e907445a50e3abda9315259cf985aa5d312c014a9a5c171933054e3386a",
-      "createdAt": "2026-10-11T10:51:29.754Z"
+      "createdAt": "2026-10-11T10:51:29.754Z",
+      "aiSettings": {
+        "provider": "gemini",
+        "model": "gemini-3.8-flash",
+        "baseUrl": ""
+      }
     },
     {
       "id": "usr_b288daeb",

@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   CheckCircle,
   Cpu,
+  Cloud,
 } from 'lucide-react';
 import { Ebook, UserProfile } from '../types/index.js';
 
@@ -23,7 +24,7 @@ interface NavbarProps {
   onNavigateView: (view: 'landing' | 'dashboard') => void;
   onNavigateStep: (step: WorkflowStepId) => void;
   onOpenNewEbook: () => void;
-  onOpenSettings: (tab?: 'profile' | 'ai_settings') => void;
+  onOpenSettings: (tab?: 'profile' | 'ai_settings' | 'vercel') => void;
 }
 
 const STEPS: { id: WorkflowStepId; label: string; number: number }[] = [
@@ -229,6 +230,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <Cpu className="w-4 h-4 text-blue-600" />
                     Pengaturan Custom API
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      onOpenSettings('vercel');
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-emerald-700 font-semibold flex items-center gap-2 cursor-pointer"
+                  >
+                    <Cloud className="w-4 h-4 text-emerald-600" />
+                    Panduan Deploy Vercel
                   </button>
 
                   <button

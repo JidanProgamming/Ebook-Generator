@@ -24,7 +24,7 @@ function MainApp() {
   const [loadingEbooks, setLoadingEbooks] = useState(false);
 
   const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [accountModalTab, setAccountModalTab] = useState<'profile' | 'ai_settings'>('profile');
+  const [accountModalTab, setAccountModalTab] = useState<'profile' | 'ai_settings' | 'vercel'>('profile');
 
   const { showToast } = useToast();
 

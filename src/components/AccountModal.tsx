@@ -17,6 +17,11 @@ import {
   EyeOff,
   Cpu,
   Sliders,
+  Globe,
+  Cloud,
+  Terminal,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { AIProvider, AISettings, UserProfile } from '../types/index.js';
 import { settingsApi } from '../lib/api.js';
@@ -26,7 +31,7 @@ interface AccountModalProps {
   isOpen: boolean;
   user: UserProfile;
   totalEbooks: number;
-  initialTab?: 'profile' | 'ai_settings';
+  initialTab?: 'profile' | 'ai_settings' | 'vercel';
   onClose: () => void;
   onSettingsSaved?: () => void;
 }
@@ -39,7 +44,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   onClose,
   onSettingsSaved,
 }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'ai_settings'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'profile' | 'ai_settings' | 'vercel'>(initialTab);
 
   // AI Configuration State
   const [provider, setProvider] = useState<AIProvider>('gemini');
@@ -55,7 +60,16 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   const [testingConnection, setTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; modelUsed?: string } | null>(null);
 
+  const [copiedEnv, setCopiedEnv] = useState<string | null>(null);
+
   const { showToast } = useToast();
+
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedEnv(label);
+    showToast(`${label} disalin ke clipboard!`, 'info');
+    setTimeout(() => setCopiedEnv(null), 2500);
+  };
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -76,7 +90,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       setModel(data.model || 'gemini-3.8-flash');
       setBaseUrl(data.baseUrl || '');
       setHasStoredKey(data.hasCustomApiKey);
-      setApiKey('');
+      if (data.cachedKey) {
+        setApiKey(data.cachedKey);
+      } else {
+        setApiKey('');
+      }
     } catch (err) {
       console.error('Failed to load AI settings', err);
     } finally {
@@ -206,7 +224,20 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             }`}
           >
             <Cpu className="w-4 h-4" />
-            Pengaturan Custom API
+            Custom API & AI
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('vercel')}
+            className={`pb-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'vercel'
+                ? 'border-blue-600 text-blue-600 font-bold'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Cloud className="w-4 h-4" />
+            Deploy Vercel
           </button>
         </div>
 
@@ -250,7 +281,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 <span className="font-bold">Keamanan & Privasi:</span> Semua draf ebook, outline, dan naskah Anda disimpan secara privat dalam database akun Anda.
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'ai_settings' ? (
             /* TAB 2: Custom API & Multi-Provider Settings */
             <form onSubmit={handleSaveSettings} className="space-y-4">
               {loadingConfig ? (
@@ -524,6 +555,131 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 </>
               )}
             </form>
+          ) : (
+            /* TAB 3: Vercel Deployment Guide */
+            <div className="space-y-4">
+              <div className="p-3.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl shadow-xs">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Cloud className="w-4 h-4 text-emerald-400" />
+                  <span className="font-bold text-sm">Status Deploy Vercel: Siap Digunakan</span>
+                </div>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  Website ini telah dikonfigurasi penuh dengan arsitektur <strong>Vercel Serverless Functions</strong> (<code className="text-emerald-300 font-mono text-[10px]">api/index.ts</code>) dan frontend Vite (<code className="text-emerald-300 font-mono text-[10px]">vercel.json</code>).
+                </p>
+              </div>
+
+              {/* Readiness Checklist */}
+              <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2">
+                <div className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
+                  Komponen Vercel Terpasang:
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-slate-700">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span><strong>vercel.json</strong> (Konfigurasi routing)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-700">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span><strong>api/index.ts</strong> (Serverless API Handler)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-700">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span><strong>Custom API Sync</strong> (LocalStorage + Headers)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-700">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span><strong>Zero-Quota Fallback</strong> (Cover Art Generator)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Steps to Deploy */}
+              <div className="space-y-2.5">
+                <div className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
+                  Langkah Deploy ke Vercel:
+                </div>
+
+                {/* Step 1 */}
+                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px]">1</span>
+                    Hubungkan ke Vercel
+                  </div>
+                  <p className="text-slate-500 text-[11px]">
+                    Push repositori ini ke GitHub/GitLab, lalu pilih <strong>Add New &gt; Project</strong> di dashboard Vercel Anda.
+                  </p>
+                </div>
+
+                {/* Step 2 */}
+                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px]">2</span>
+                    Environment Variables di Vercel (Opsional / Rekomendasi)
+                  </div>
+                  <p className="text-slate-500 text-[11px]">
+                    Di menu <em>Settings &gt; Environment Variables</em> Vercel, tambahkan variabel berikut:
+                  </p>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 font-mono text-[11px]">
+                      <div>
+                        <span className="text-blue-700 font-semibold">GEMINI_API_KEY</span>
+                        <span className="text-slate-400 text-[10px] block font-sans">Kunci Google AI Studio untuk generate outline & cover</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy('GEMINI_API_KEY', 'Nama ENV')}
+                        className="px-2 py-1 rounded bg-white hover:bg-slate-100 border border-slate-200 text-[10px] text-slate-700 flex items-center gap-1"
+                      >
+                        {copiedEnv === 'Nama ENV' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        Salin
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 font-mono text-[11px]">
+                      <div>
+                        <span className="text-purple-700 font-semibold">OPENROUTER_API_KEY</span>
+                        <span className="text-slate-400 text-[10px] block font-sans">Opsional: Jika ingin model DeepSeek, Llama, Claude</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy('OPENROUTER_API_KEY', 'OpenRouter ENV')}
+                        className="px-2 py-1 rounded bg-white hover:bg-slate-100 border border-slate-200 text-[10px] text-slate-700 flex items-center gap-1"
+                      >
+                        {copiedEnv === 'OpenRouter ENV' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        Salin
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px]">3</span>
+                    Deploy via CLI (Terminal)
+                  </div>
+                  <div className="bg-slate-900 text-slate-100 p-2.5 rounded-lg font-mono text-[11px] flex items-center justify-between">
+                    <code>npx vercel --prod</code>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy('npx vercel --prod', 'Perintah CLI')}
+                      className="text-slate-400 hover:text-white flex items-center gap-1 text-[10px]"
+                    >
+                      {copiedEnv === 'Perintah CLI' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px] leading-relaxed flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Fleksibilitas Custom API:</strong> Pengguna aplikasi dapat langsung memasukkan API key mereka sendiri di tab <em>"Custom API & AI"</em>. Pengaturan disimpan di browser pengguna dan otomatis dikirimkan ke serverless function Vercel pada setiap pembuatan buku!
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
